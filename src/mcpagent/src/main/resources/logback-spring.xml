@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{ISO8601} %-5level [%thread] %logger - %msg trace_id=%X{trace_id} span_id=%X{span_id}%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="OTEL" class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+    <captureMdcAttributes>*</captureMdcAttributes>
+    <captureLoggerContext>true</captureLoggerContext>
+    <captureMarkerAttribute>true</captureMarkerAttribute>
+    <captureKeyValuePairAttributes>true</captureKeyValuePairAttributes>
+    <captureCodeAttributes>false</captureCodeAttributes>
+    <captureExperimentalAttributes>true</captureExperimentalAttributes>
+  </appender>
+
+  <logger name="com.gentorox" level="DEBUG"/>
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="OTEL"/>
+  </root>
+</configuration>

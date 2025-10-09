@@ -1,0 +1,37 @@
+# Base image with JRE 21, Node, OpenAPI Generator CLI wrapper, OTel Collector, and supervisord
+FROM debian:bookworm AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg unzip supervisor \
+    openjdk-21-jre-headless nodejs npm \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install OpenAPI Generator CLI (npm wrapper uses docker by default but provides local CLI)
+RUN npm i -g @openapitools/openapi-generator-cli@2.13.7
+
+# Copy otelcol binary from official image
+FROM otel/opentelemetry-collector:latest as otel
+
+FROM debian:bookworm
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg unzip supervisor \
+    openjdk-21-jre-headless nodejs npm \
+ && rm -rf /var/lib/apt/lists/*
+
+# OpenAPI generator via npm wrapper
+RUN npm i -g @openapitools/openapi-generator-cli@2.13.7
+
+# Bring in otelcol
+COPY --from=otel /otelcol /usr/local/bin/otelcol
+COPY --from=otel /etc/otelcol-contrib/config.yaml /etc/otel-collector-config.yaml
+
+# Entrypoint helpers
+RUN mkdir -p /opt/bin /var/log/supervisor
+COPY scripts/docker/entrypoint.sh /opt/bin/entrypoint.sh
+COPY scripts/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN chmod +x /opt/bin/entrypoint.sh
+
+ENV PATH="/opt/bin:${PATH}"
+ENTRYPOINT ["/opt/bin/entrypoint.sh"]
