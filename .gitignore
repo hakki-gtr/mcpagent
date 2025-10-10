@@ -39,3 +39,5 @@ build/
 dist/
 coverage/
 .cache/
+
+package-lock.json
