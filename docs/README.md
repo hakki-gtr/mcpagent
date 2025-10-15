@@ -91,7 +91,68 @@ pnpm run start
 
 ## Deployment
 
-The site can be deployed to any platform supporting Next.js (Vercel, Netlify, etc.). Configure as needed in your CI/CD pipeline.
+### Automated S3 Deployment
+
+The documentation is deployed to S3 via a manually-triggered GitHub Actions workflow.
+
+#### Setup Requirements
+
+1. **AWS Secrets** (configure in GitHub repository settings):
+   - `AWS_DEPLOY_ROLE_ARN` - IAM role ARN with S3 write permissions
+   - `AWS_REGION` - AWS region (e.g., `us-east-1`)
+   - `DOCS_S3_BUCKET` - S3 bucket name for docs
+   - `CLOUDFRONT_DISTRIBUTION_ID` - (Optional) CloudFront distribution ID for cache invalidation
+
+2. **IAM Role Permissions**:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:PutObject",
+           "s3:DeleteObject",
+           "s3:ListBucket"
+         ],
+         "Resource": [
+           "arn:aws:s3:::your-docs-bucket/*",
+           "arn:aws:s3:::your-docs-bucket"
+         ]
+       }
+     ]
+   }
+   ```
+
+#### Deploying
+
+1. Go to **Actions** tab in GitHub
+2. Select **Deploy Documentation to S3** workflow
+3. Click **Run workflow**
+4. Choose environment (production/staging)
+5. Click **Run workflow**
+
+The workflow will:
+- Build static site (`pnpm run build`)
+- Export to `out/` directory with `index.html` at root
+- Sync to S3 with `--delete` flag (removes old files)
+- Invalidate CloudFront cache (if configured)
+
+#### Local Build Test
+
+Test the production build locally:
+
+```bash
+pnpm run build
+cd out
+python3 -m http.server 8000
+```
+
+Open [http://localhost:8000](http://localhost:8000) to verify.
+
+### Other Deployment Options
+
+The site can also be deployed to Vercel, Netlify, or other platforms supporting Next.js static export.
 
 ## Contributing
 
