@@ -1,0 +1,75 @@
+/* Simple global styles for the landing page and minor tweaks */
+
+:root {
+  --brand-fg: #111111;
+  --brand-bg: #ffffff;
+  --muted-fg: #555555;
+  --radius: 8px;
+}
+
+/* Dark mode tuning (nextra/next-themes adds .dark to <html>) */
+.dark {
+  --brand-bg: #0b0b0b;
+  --muted-fg: #a0a0a0;
+}
+.dark .home-subtitle { color: var(--muted-fg); }
+.dark .btn-primary { background: #ffffff; color: #111111; }
+.dark .btn-secondary { border-color: #555555; color: #ffffff; }
+.dark .btn-secondary:hover { background: rgba(255,255,255,0.06); }
+
+/* Space below the navbar/banner so main hero can center visually */
+.home-hero {
+  /* Use 100dvh to avoid mobile viewport issues; subtract navbar height */
+  min-height: calc(100dvh - 64px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto;
+  max-width: 800px;
+  padding: 0 24px;
+}
+
+.home-title {
+  margin-bottom: 12px;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.home-subtitle {
+  margin-bottom: 24px;
+  font-size: 1.125rem;
+  color: var(--muted-fg);
+  line-height: 1.6;
+}
+
+.home-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-primary {
+  background: var(--brand-fg);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  display: inline-block;
+  transition: opacity 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+.btn-secondary {
+  border: 1px solid #ddd;
+  color: var(--brand-fg);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  display: inline-block;
+  background: transparent;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+.btn-secondary:hover { background: rgba(0,0,0,0.04); }
