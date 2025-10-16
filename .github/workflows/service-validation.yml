@@ -1,13 +1,11 @@
-name: Service Validation Tests
+name: Service Validation
 
 on:
-  workflow_call:
-    inputs:
-      test-config:
-        description: 'Test configuration'
-        required: false
-        type: string
-        default: '.github/test-config.yml'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   service-validation:
@@ -321,11 +319,10 @@ jobs:
         pkill -f "java.*acme" || echo "No acme processes to kill"
         pkill -f "node.*typescript-runtime" || echo "No typescript-runtime processes to kill"
     
-    - name: Upload service validation results
+    - name: Upload build artifacts for Docker
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: service-validation-results
+        name: build-artifacts
         path: |
           src/mcpagent/target/*.jar
           src/acme-analytics-server/server/target/*.jar

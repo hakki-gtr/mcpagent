@@ -1,19 +1,16 @@
 name: Integration Tests
 
 on:
-  workflow_call:
-    inputs:
-      test-config:
-        description: 'Test configuration'
-        required: false
-        type: string
-        default: '.github/test-config.yml'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail pipeline if integration tests fail
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

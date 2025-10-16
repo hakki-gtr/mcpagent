@@ -1,13 +1,11 @@
 name: Unit Tests
 
 on:
-  workflow_call:
-    inputs:
-      test-config:
-        description: 'Test configuration'
-        required: false
-        type: string
-        default: '.github/test-config.yml'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   unit-tests:

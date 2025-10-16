@@ -1,4 +1,4 @@
-name: PR Checks
+name: Docker Build
 
 on:
   push:
@@ -12,30 +12,9 @@ env:
   IMAGE_NAME_PRODUCT: admingentoro/gentoro
 
 jobs:
-  # Stage 1: Unit Tests - Fast feedback for code quality
-  unit-tests:
-    uses: ./.github/workflows/test-unit.yml
-
-  # Stage 2: Integration Tests - Test component interactions (optional)
-  integration-tests:
-    uses: ./.github/workflows/test-integration.yml
-    needs: unit-tests
-
-  # Stage 3: Build - Compile and package all components
-  build:
-    uses: ./.github/workflows/build.yml
-    needs: [unit-tests, integration-tests]
-
-  # Stage 4: Service Validation - Test HTTP services and artifacts
-  service-validation:
-    uses: ./.github/workflows/test-services.yml
-    needs: build
-
-  # Stage 5: Docker Build - Multi-platform container builds
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: service-validation
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
@@ -48,6 +27,39 @@ jobs:
       with:
         name: build-artifacts
         path: .
+    
+    - name: Verify artifacts for Docker build
+      run: |
+        echo "Verifying artifacts are available for Docker build..."
+        
+        # Check mcpagent JAR
+        MCPAGENT_JAR=$(find src/mcpagent/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        if [ -f "$MCPAGENT_JAR" ]; then
+          echo "✅ mcpagent JAR found: $MCPAGENT_JAR"
+          ls -la "$MCPAGENT_JAR"
+        else
+          echo "❌ mcpagent JAR not found"
+          exit 1
+        fi
+        
+        # Check acme-analytics-server JAR
+        ACME_JAR=$(find src/acme-analytics-server/server/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+        if [ -f "$ACME_JAR" ]; then
+          echo "✅ acme-analytics-server JAR found: $ACME_JAR"
+          ls -la "$ACME_JAR"
+        else
+          echo "❌ acme-analytics-server JAR not found"
+          exit 1
+        fi
+        
+        # Check typescript-runtime dist
+        if [ -d "src/typescript-runtime/dist" ]; then
+          echo "✅ typescript-runtime dist found"
+          ls -la src/typescript-runtime/dist/
+        else
+          echo "❌ typescript-runtime dist not found"
+          exit 1
+        fi
     
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -84,40 +96,3 @@ jobs:
         echo "Building product image for ${{ matrix.platform }}..."
         
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
-
-  # Stage 6: End-to-End Validation - Final service testing with Docker
-  e2e-validation:
-    name: End-to-End Validation
-    runs-on: ubuntu-latest
-    needs: docker-build
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Install xmllint
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libxml2-utils
-    
-    - name: Extract version from POM
-      id: version
-      run: |
-        POM_FILE="src/mcpagent/pom.xml"
-        CURRENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM_FILE")
-        VERSION_NUMBER=${CURRENT_VERSION%-SNAPSHOT}
-        echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
-        echo "full_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        echo "Current version: $CURRENT_VERSION (testing: $VERSION_NUMBER)"
-    
-    - name: Validate services
-      run: |
-        VERSION="${{ steps.version.outputs.version }}"
-        PLATFORM="${{ matrix.platform }}"
-        echo "Validating services on $PLATFORM..."
-        
-        # Use the validation script
-        chmod +x scripts/docker/validate-services.sh
-        ./scripts/docker/validate-services.sh "$VERSION" "$PLATFORM"
