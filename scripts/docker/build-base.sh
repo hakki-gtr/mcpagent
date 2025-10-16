@@ -26,17 +26,16 @@ echo "Dockerfile: $DOCKERFILE"
 echo "Platforms: $PLATFORMS"
 
 # Determine build command based on whether we're pushing
-BUILD_CMD="docker buildx build"
-BUILD_ARGS=(
-  -f "$DOCKERFILE"
-  --platform "$PLATFORMS"
-  -t "admingentoro/gentoro:base-$VERSION"
-  -t "admingentoro/gentoro:base-latest"
-)
-
 if [[ "$PUSH_FLAG" == "--push" ]]; then
   echo "Will push images to registry"
-  BUILD_ARGS+=(--push)
+  BUILD_CMD="docker buildx build"
+  BUILD_ARGS=(
+    -f "$DOCKERFILE"
+    --platform "$PLATFORMS"
+    -t "admingentoro/gentoro:base-$VERSION"
+    -t "admingentoro/gentoro:base-latest"
+    --push
+  )
 else
   echo "Building for local use (load to docker)"
   # For local builds, we can only load one platform
@@ -44,6 +43,7 @@ else
   if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
     PLATFORMS="linux/amd64"
   fi
+  BUILD_CMD="docker buildx build"
   BUILD_ARGS=(
     -f "$DOCKERFILE"
     --platform "$PLATFORMS"

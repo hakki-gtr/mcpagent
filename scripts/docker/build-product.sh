@@ -60,14 +60,15 @@ else
   if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
     PLATFORMS="linux/amd64"
   fi
-  BUILD_CMD="docker build"
+  BUILD_CMD="docker buildx build"
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
+    --platform "$PLATFORMS"
     --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
     --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
     -t "admingentoro/gentoro:$VERSION"
     -t "admingentoro/gentoro:latest"
-    --platform "$PLATFORMS"
+    --load
   )
 fi
 
