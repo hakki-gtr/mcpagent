@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Service validation script for Docker images
-# Usage: ./validate-services.sh <version> <platform>
+# Container validation script for Docker images
+# Usage: ./validate-containers.sh <version> <platform>
 
 set -euo pipefail
 
@@ -252,7 +252,7 @@ validate_product_image() {
 }
 
 main() {
-    log_info "Starting service validation"
+    log_info "Starting container validation"
     log_info "Version: $VERSION"
     log_info "Platform: $PLATFORM"
     log_info "Base Image: $BASE_IMAGE"
@@ -270,7 +270,7 @@ main() {
         exit 1
     fi
     
-    log_success "All service validations passed for $PLATFORM!"
+    log_success "All container validations passed for $PLATFORM!"
 }
 
 main "$@"
