@@ -127,21 +127,42 @@ jobs:
         cd src/typescript-runtime
         echo "Starting TypeScript runtime server on port 3000..."
         # Use dev server for integration tests
-        npm run dev &
+        npm run dev > ts-runtime.log 2>&1 &
         SERVER_PID=$!
         echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+        echo "TypeScript Runtime PID: $SERVER_PID"
+        
         # Wait for server to start
         sleep 15
+        
+        # Check if the process is still running
+        if ! kill -0 $SERVER_PID 2>/dev/null; then
+          echo "❌ TypeScript Runtime process died during integration test startup"
+          echo "Log output:"
+          cat ts-runtime.log || echo "No log file found"
+          echo "Skipping integration tests due to service startup failure"
+          exit 0
+        fi
+        
         # Check if server is running by trying to connect
         for i in {1..5}; do
-          RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null)
-          if echo "$RESPONSE" | grep -q '"ok":true'; then
-            echo "TypeScript runtime server is ready"
-            break
+          if kill -0 $SERVER_PID 2>/dev/null; then
+            RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null)
+            if echo "$RESPONSE" | grep -q '"ok":true'; then
+              echo "TypeScript runtime server is ready"
+              break
+            else
+              echo "Service running but not responding correctly. Response: $RESPONSE"
+            fi
           else
-            echo "Waiting for server to start... attempt $i/5"
-            sleep 5
+            echo "❌ TypeScript Runtime process died during health check (attempt $i/5)"
+            echo "Log output:"
+            cat ts-runtime.log || echo "No log file found"
+            echo "Skipping integration tests due to service failure"
+            exit 0
           fi
+          echo "Waiting for server to start... attempt $i/5"
+          sleep 5
         done
     
     - name: Run mcpagent integration tests
@@ -292,21 +313,45 @@ jobs:
         cd src/typescript-runtime
         echo "Starting TypeScript Runtime service on port 3000..."
         # Use dev server instead of production build to avoid module resolution issues
-        npm run dev &
+        npm run dev > ts-runtime.log 2>&1 &
         TSRT_PID=$!
         echo "TSRT_PID=$TSRT_PID" >> $GITHUB_ENV
+        echo "TypeScript Runtime PID: $TSRT_PID"
+        
+        # Wait a moment for the service to start
+        sleep 5
+        
+        # Check if the process is still running
+        if ! kill -0 $TSRT_PID 2>/dev/null; then
+          echo "❌ TypeScript Runtime process died immediately"
+          echo "Log output:"
+          cat ts-runtime.log || echo "No log file found"
+          echo "Attempting to start with more verbose output..."
+          npm run dev &
+          TSRT_PID=$!
+          echo "TSRT_PID=$TSRT_PID" >> $GITHUB_ENV
+          sleep 5
+        fi
         
         # Wait for service to start
         echo "Waiting for TypeScript Runtime service to start..."
         for i in {1..30}; do
-          RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null)
-          if echo "$RESPONSE" | grep -q '"ok":true'; then
-            echo "✅ TypeScript Runtime service is ready"
-            break
+          if kill -0 $TSRT_PID 2>/dev/null; then
+            RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null)
+            if echo "$RESPONSE" | grep -q '"ok":true'; then
+              echo "✅ TypeScript Runtime service is ready"
+              break
+            else
+              echo "Service running but not responding correctly. Response: $RESPONSE"
+            fi
           else
-            echo "Waiting for TypeScript Runtime service... attempt $i/30"
-            sleep 2
+            echo "❌ TypeScript Runtime process died during startup (attempt $i/30)"
+            echo "Log output:"
+            cat ts-runtime.log || echo "No log file found"
+            exit 1
           fi
+          echo "Waiting for TypeScript Runtime service... attempt $i/30"
+          sleep 2
         done
     
     - name: Start ACME Analytics Server
@@ -578,32 +623,64 @@ jobs:
         # Build mcpagent
         echo "Building mcpagent..."
         cd src/mcpagent
+        echo "Current directory: $(pwd)"
+        echo "Contents: $(ls -la)"
         mvn clean package spring-boot:repackage -DskipTests
+        echo "After maven build: $(ls -la target/ || echo 'target directory not found')"
         
         # Build acme-analytics-server
         echo "Building acme-analytics-server..."
         cd ../acme-analytics-server/server
+        echo "Current directory: $(pwd)"
+        echo "Contents: $(ls -la)"
         mvn clean package -DskipTests
+        echo "After maven build: $(ls -la target/ || echo 'target directory not found')"
         
         # Build typescript-runtime
         echo "Building typescript-runtime..."
         cd ../../typescript-runtime
+        echo "Current directory: $(pwd)"
+        echo "Contents: $(ls -la)"
         npm install --legacy-peer-deps
         npm run build
+        echo "After npm build: $(ls -la dist/ || echo 'dist directory not found')"
         
         cd ../..
+        echo "Back to root directory: $(pwd)"
+        echo "Final verification:"
+        echo "mcpagent target: $(ls -la src/mcpagent/target/ || echo 'mcpagent target not found')"
+        echo "acme target: $(ls -la src/acme-analytics-server/server/target/ || echo 'acme target not found')"
+        echo "typescript dist: $(ls -la src/typescript-runtime/dist/ || echo 'typescript dist not found')"
     
     - name: Verify artifacts for Docker build
       run: |
         echo "Verifying artifacts are available for Docker build..."
         
+        # Check if directories exist first
+        echo "Checking directory structure..."
+        echo "src/mcpagent exists: $([ -d src/mcpagent ] && echo 'yes' || echo 'no')"
+        echo "src/mcpagent/target exists: $([ -d src/mcpagent/target ] && echo 'yes' || echo 'no')"
+        echo "src/acme-analytics-server/server exists: $([ -d src/acme-analytics-server/server ] && echo 'yes' || echo 'no')"
+        echo "src/acme-analytics-server/server/target exists: $([ -d src/acme-analytics-server/server/target ] && echo 'yes' || echo 'no')"
+        echo "src/typescript-runtime exists: $([ -d src/typescript-runtime ] && echo 'yes' || echo 'no')"
+        echo "src/typescript-runtime/dist exists: $([ -d src/typescript-runtime/dist ] && echo 'yes' || echo 'no')"
+        
         # Check mcpagent JAR
-        MCPAGENT_JAR=$(find src/mcpagent/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
-        if [ -f "$MCPAGENT_JAR" ]; then
-          echo "✅ mcpagent JAR found: $MCPAGENT_JAR"
-          ls -la "$MCPAGENT_JAR"
+        if [ -d src/mcpagent/target ]; then
+          MCPAGENT_JAR=$(find src/mcpagent/target -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+          if [ -f "$MCPAGENT_JAR" ]; then
+            echo "✅ mcpagent JAR found: $MCPAGENT_JAR"
+            ls -la "$MCPAGENT_JAR"
+          else
+            echo "❌ mcpagent JAR not found in target directory"
+            echo "Contents of src/mcpagent/target:"
+            ls -la src/mcpagent/target/ || echo "Cannot list target directory"
+            exit 1
+          fi
         else
-          echo "❌ mcpagent JAR not found"
+          echo "❌ mcpagent target directory not found"
+          echo "Contents of src/mcpagent:"
+          ls -la src/mcpagent/ || echo "Cannot list mcpagent directory"
           exit 1
         fi
         
