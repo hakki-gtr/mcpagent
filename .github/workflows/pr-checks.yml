@@ -26,11 +26,16 @@ jobs:
     uses: ./.github/workflows/build.yml
     needs: [unit-tests, integration-tests]
 
-  # Stage 4: Docker Build - Multi-platform container builds
+  # Stage 4: Service Validation - Test HTTP services and artifacts
+  service-validation:
+    uses: ./.github/workflows/test-services.yml
+    needs: build
+
+  # Stage 5: Docker Build - Multi-platform container builds
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: build
+    needs: service-validation
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
@@ -80,9 +85,9 @@ jobs:
         
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
 
-  # Stage 5: Service Validation - End-to-end service testing
-  service-validation:
-    name: Service Validation
+  # Stage 6: End-to-End Validation - Final service testing with Docker
+  e2e-validation:
+    name: End-to-End Validation
     runs-on: ubuntu-latest
     needs: docker-build
     strategy:

@@ -68,6 +68,27 @@ service_validation:
   platforms:
     - "linux/amd64"
     - "linux/arm64"
+  
+  # HTTP Service Endpoints to validate
+  services:
+    mcpagent:
+      port: 8080
+      health_endpoint: "/actuator/health"
+      mcp_endpoint: "/mcp"
+      expected_response: "UP"
+    
+    acme_analytics_server:
+      port: 8081
+      health_endpoint: "/health"
+      fields_endpoint: "/fields"
+      query_endpoint: "/query"
+      expected_response: "healthy"
+    
+    typescript_runtime:
+      port: 3000
+      run_endpoint: "/run"
+      upload_endpoint: "/sdk/upload"
+      expected_response: "success"
 
 # Performance and Optimization
 performance:
