@@ -27,8 +27,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: 'src/typescript-runtime/package-lock.json'
     
     - name: Cache Maven dependencies
       uses: actions/cache@v4
@@ -36,6 +34,15 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
+    
+    - name: Cache npm dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-${{ hashFiles('src/typescript-runtime/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-
+          ${{ runner.os }}-
     
     - name: Install xmllint
       run: |
