@@ -600,9 +600,9 @@ jobs:
           src/typescript-runtime/dist/
         retention-days: 7
 
-  # Stage 4: Docker Build - Multi-platform container builds
-  docker-build:
-    name: Docker Build
+  # Stage 4: Docker Build & Container Validation - Multi-platform container builds and testing
+  docker-build-and-validate:
+    name: Docker Build & Container Validation
     runs-on: ubuntu-latest
     needs: service-validation
     if: always() && (needs.service-validation.result == 'success' || needs.service-validation.result == 'skipped')
@@ -773,6 +773,10 @@ jobs:
         VERSION="${{ steps.version.outputs.version }}"
         echo "Building base image for ${{ matrix.platform }}..."
         ./scripts/docker/build-base.sh "$VERSION" "" --platform "${{ matrix.platform }}"
+        
+        echo "Verifying base image was built..."
+        docker images | grep "admingentoro/gentoro" || echo "No gentoro images found"
+        docker image inspect "admingentoro/gentoro:base-$VERSION" || echo "Base image not found locally"
     
     - name: Build product image
       run: |
@@ -781,41 +785,18 @@ jobs:
         JAR_NAME="mcpagent-$POM_VERSION.jar"
         echo "Building product image for ${{ matrix.platform }}..."
         
+        echo "Checking if base image exists before building product image..."
+        docker images | grep "admingentoro/gentoro" || echo "No gentoro images found"
+        docker image inspect "admingentoro/gentoro:base-$VERSION" || echo "Base image not found locally"
+        
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
-
-  # Stage 5: End-to-End Validation - Final service testing with Docker
-  e2e-validation:
-    name: End-to-End Validation
-    runs-on: ubuntu-latest
-    needs: docker-build
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
     
-    - name: Install xmllint
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libxml2-utils
-    
-    - name: Extract version from POM
-      id: version
-      run: |
-        POM_FILE="src/mcpagent/pom.xml"
-        CURRENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM_FILE")
-        VERSION_NUMBER=${CURRENT_VERSION%-SNAPSHOT}
-        echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
-        echo "full_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        echo "Current version: $CURRENT_VERSION (testing: $VERSION_NUMBER)"
-    
-    - name: Validate services
+    - name: Container Validation
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         PLATFORM="${{ matrix.platform }}"
-        echo "Validating services on $PLATFORM..."
+        echo "Validating containers on $PLATFORM..."
         
         # Use the validation script
-        chmod +x scripts/docker/validate-services.sh
-        ./scripts/docker/validate-services.sh "$VERSION" "$PLATFORM"
+        chmod +x scripts/docker/validate-containers.sh
+        ./scripts/docker/validate-containers.sh "$VERSION" "$PLATFORM"
