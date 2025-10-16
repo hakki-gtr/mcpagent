@@ -1,0 +1,88 @@
+name: Build Components
+
+on:
+  workflow_call:
+    inputs:
+      test-config:
+        description: 'Test configuration'
+        required: false
+        type: string
+        default: '.github/test-config.yml'
+
+jobs:
+  build:
+    name: Build Components
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'src/typescript-runtime/package-lock.json'
+    
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Install xmllint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libxml2-utils
+    
+    - name: Extract version from POM
+      id: version
+      run: |
+        POM_FILE="src/mcpagent/pom.xml"
+        CURRENT_VERSION=$(xmllint --xpath "/*[local-name()='project']/*[local-name()='version']/text()" "$POM_FILE")
+        VERSION_NUMBER=${CURRENT_VERSION%-SNAPSHOT}
+        echo "version=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+        echo "full_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION (testing: $VERSION_NUMBER)"
+    
+    - name: Build mcpagent JAR
+      run: |
+        cd src/mcpagent
+        echo "Building mcpagent executable JAR..."
+        mvn clean package spring-boot:repackage -DskipTests
+    
+    - name: Build acme-analytics-server JAR
+      run: |
+        cd src/acme-analytics-server/server
+        echo "Building acme-analytics-server JAR..."
+        mvn clean package -DskipTests
+    
+    - name: Build typescript-runtime
+      run: |
+        cd src/typescript-runtime
+        echo "Installing dependencies..."
+        npm install --legacy-peer-deps
+        echo "Building typescript-runtime..."
+        npm run build
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          src/mcpagent/target/*.jar
+          src/acme-analytics-server/server/target/*.jar
+          src/typescript-runtime/dist/
+        retention-days: 7
+    
+    - name: Output version info
+      run: |
+        echo "Built version: ${{ steps.version.outputs.version }}"
+        echo "Full version: ${{ steps.version.outputs.full_version }}"
