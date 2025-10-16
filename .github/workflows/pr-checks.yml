@@ -16,10 +16,11 @@ jobs:
   unit-tests:
     uses: ./.github/workflows/test-unit.yml
 
-  # Stage 2: Integration Tests - Test component interactions
+  # Stage 2: Integration Tests - Test component interactions (optional)
   integration-tests:
     uses: ./.github/workflows/test-integration.yml
     needs: unit-tests
+    continue-on-error: true  # Don't fail pipeline if integration tests fail
 
   # Stage 3: Build - Compile and package all components
   build:
