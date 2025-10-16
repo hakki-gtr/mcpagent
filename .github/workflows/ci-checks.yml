@@ -648,8 +648,14 @@ jobs:
         path: .
     
     - name: Build artifacts if not available
-      if: failure()
+      if: always()
       run: |
+        # Check if artifacts were successfully downloaded
+        if [ -d "src/mcpagent/target" ] && [ -d "src/acme-analytics-server/server/target" ] && [ -d "src/typescript-runtime/dist" ]; then
+          echo "Artifacts already available, skipping build"
+          exit 0
+        fi
+        
         echo "Artifacts not available, building them now..."
         
         # Build mcpagent
@@ -688,6 +694,10 @@ jobs:
       run: |
         echo "Verifying artifacts are available for Docker build..."
         
+        # Wait for build step to complete if it's running
+        echo "Waiting a moment for any build processes to complete..."
+        sleep 5
+        
         # Check if directories exist first
         echo "Checking directory structure..."
         echo "src/mcpagent exists: $([ -d src/mcpagent ] && echo 'yes' || echo 'no')"
@@ -707,12 +717,14 @@ jobs:
             echo "❌ mcpagent JAR not found in target directory"
             echo "Contents of src/mcpagent/target:"
             ls -la src/mcpagent/target/ || echo "Cannot list target directory"
+            echo "Build step may still be running or failed"
             exit 1
           fi
         else
           echo "❌ mcpagent target directory not found"
           echo "Contents of src/mcpagent:"
           ls -la src/mcpagent/ || echo "Cannot list mcpagent directory"
+          echo "Build step may not have run yet"
           exit 1
         fi
         
