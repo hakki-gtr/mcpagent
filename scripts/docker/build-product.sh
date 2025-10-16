@@ -54,8 +54,8 @@ if [[ "$PUSH_FLAG" == "--push" ]]; then
     --push
   )
 else
-  echo "Building for local use"
-  # For local builds, use docker buildx build --load to handle multi-platform correctly
+  echo "Building for local use (docker buildx with --load)"
+  # For local builds, use docker buildx with --load to access local images
   # Don't override PLATFORMS if it was set via --platform parameter
   if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
     PLATFORMS="linux/amd64"
@@ -76,31 +76,15 @@ else
     fi
   fi
   
-  # For local builds, use docker buildx build --load for cross-platform support
-  # Use docker build only for native AMD64 builds
-  if [[ "$PLATFORMS" == "linux/amd64" ]]; then
-    echo "Native AMD64 build, using docker build for local-only"
-    BUILD_CMD="docker build"
-    BUILD_ARGS=(
-      -f "$ROOT_DIR/Dockerfile"
-      --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-      --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
-      -t "admingentoro/gentoro:$VERSION"
-      -t "admingentoro/gentoro:latest"
-    )
-  else
-    echo "Cross-platform build detected, using buildx"
-    BUILD_CMD="docker buildx build"
-    BUILD_ARGS=(
-      -f "$ROOT_DIR/Dockerfile"
-      --platform "$PLATFORMS"
-      --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-      --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
-      -t "admingentoro/gentoro:$VERSION"
-      -t "admingentoro/gentoro:latest"
-      --load
-    )
-  fi
+  BUILD_CMD="docker build"
+  BUILD_ARGS=(
+    -f "$ROOT_DIR/Dockerfile"
+    --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
+    --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
+    -t "admingentoro/gentoro:$VERSION"
+    -t "admingentoro/gentoro:latest"
+    --platform "$PLATFORMS"
+  )
 fi
 
 # Build Docker image

@@ -774,7 +774,16 @@ jobs:
         
         echo "Verifying base image was built..."
         docker images | grep "admingentoro/gentoro" || echo "No gentoro images found"
-        docker image inspect "admingentoro/gentoro:base-$VERSION" || echo "Base image not found locally"
+        
+        # Check for both versioned and latest base images
+        if docker image inspect "admingentoro/gentoro:base-$VERSION" >/dev/null 2>&1; then
+          echo "✅ Base image admingentoro/gentoro:base-$VERSION found"
+        elif docker image inspect "admingentoro/gentoro:base-latest" >/dev/null 2>&1; then
+          echo "✅ Base image admingentoro/gentoro:base-latest found (will be used as fallback)"
+        else
+          echo "❌ No base image found locally"
+          exit 1
+        fi
     
     - name: Build product image
       run: |
@@ -785,7 +794,16 @@ jobs:
         
         echo "Checking if base image exists before building product image..."
         docker images | grep "admingentoro/gentoro" || echo "No gentoro images found"
-        docker image inspect "admingentoro/gentoro:base-$VERSION" || echo "Base image not found locally"
+        
+        # Check for both versioned and latest base images (product script has fallback logic)
+        if docker image inspect "admingentoro/gentoro:base-$VERSION" >/dev/null 2>&1; then
+          echo "✅ Base image admingentoro/gentoro:base-$VERSION found"
+        elif docker image inspect "admingentoro/gentoro:base-latest" >/dev/null 2>&1; then
+          echo "✅ Base image admingentoro/gentoro:base-latest found (will be used as fallback)"
+        else
+          echo "❌ No base image found locally"
+          exit 1
+        fi
         
         ./scripts/docker/build-product.sh "$VERSION" "$JAR_NAME" "" --platform "${{ matrix.platform }}"
     
