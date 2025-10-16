@@ -6,11 +6,15 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Docker Build"]
+    types: [completed]
 
 jobs:
   e2e-validation:
     name: End-to-End Validation
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run' }}
     strategy:
       matrix:
         platform: [linux/amd64, linux/arm64]
