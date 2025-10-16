@@ -54,21 +54,19 @@ if [[ "$PUSH_FLAG" == "--push" ]]; then
     --push
   )
 else
-  echo "Building for local use (docker buildx with --load)"
-  # For local builds, use docker buildx with --load to access local images
+  echo "Building for local use (docker build)"
+  # For local builds, use docker build to access local images
   # Don't override PLATFORMS if it was set via --platform parameter
   if [[ "$PLATFORM_FLAG" != "--platform" ]]; then
     PLATFORMS="linux/amd64"
   fi
-  BUILD_CMD="docker buildx build"
+  BUILD_CMD="docker build"
   BUILD_ARGS=(
     -f "$ROOT_DIR/Dockerfile"
-    --platform "$PLATFORMS"
     --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
     --build-arg "BASE_IMAGE=admingentoro/gentoro:base-$VERSION"
     -t "admingentoro/gentoro:$VERSION"
     -t "admingentoro/gentoro:latest"
-    --load
   )
 fi
 
