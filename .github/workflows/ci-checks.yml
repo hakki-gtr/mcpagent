@@ -134,7 +134,8 @@ jobs:
         sleep 15
         # Check if server is running by trying to connect
         for i in {1..5}; do
-          if curl -f http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null; then
+          RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"test\")"}' 2>/dev/null)
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
             echo "TypeScript runtime server is ready"
             break
           else
@@ -298,7 +299,8 @@ jobs:
         # Wait for service to start
         echo "Waiting for TypeScript Runtime service to start..."
         for i in {1..30}; do
-          if curl -f http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null; then
+          RESPONSE=$(curl -s http://localhost:3000/run -X POST -H "Content-Type: application/json" -d '{"snippet":"console.log(\"health check\")"}' 2>/dev/null)
+          if echo "$RESPONSE" | grep -q '"ok":true'; then
             echo "✅ TypeScript Runtime service is ready"
             break
           else
@@ -369,7 +371,7 @@ jobs:
           -d '{"snippet":"console.log(\"Hello from TypeScript Runtime\"); \"success\""}')
         echo "Response: $RESPONSE"
         
-        if echo "$RESPONSE" | grep -q "success"; then
+        if echo "$RESPONSE" | grep -q '"ok":true'; then
           echo "✅ TypeScript Runtime /run endpoint working"
         else
           echo "❌ TypeScript Runtime /run endpoint failed"
