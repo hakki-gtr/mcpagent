@@ -18,10 +18,17 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    env:
+      CF_DIST_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -29,11 +36,6 @@ jobs:
           node-version: '22.15.0'
           cache: 'pnpm'
           cache-dependency-path: docs/pnpm-lock.yaml
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
 
       - name: Install dependencies
         working-directory: docs
@@ -44,6 +46,17 @@ jobs:
         run: pnpm run build
         env:
           NODE_ENV: production
+
+      - name: Verify build output
+        working-directory: docs
+        run: |
+          if [ ! -d "out" ]; then
+            echo "❌ Build output directory 'out' not found!"
+            exit 1
+          fi
+          echo "✅ Build output directory exists"
+          echo "📦 Build size: $(du -sh out | cut -f1)"
+          echo "📄 Files generated: $(find out -type f | wc -l)"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -62,16 +75,20 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Invalidate CloudFront cache
-        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID != '' }}
+        if: ${{ env.CF_DIST_ID != '' }}
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id "${{ env.CF_DIST_ID }}" \
             --paths "/*"
 
       - name: Deployment summary
+        working-directory: docs
         run: |
           echo "### ✅ Documentation deployed successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **S3 Bucket**: ${{ secrets.DOCS_S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: \`${{ secrets.DOCS_S3_BUCKET }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Size**: $(du -sh out 2>/dev/null | cut -f1 || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files Deployed**: $(find out -type f 2>/dev/null | wc -l || echo 'N/A')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: $([ -n "${{ env.CF_DIST_ID }}" ] && echo "Cache invalidated" || echo "Not configured")" >> $GITHUB_STEP_SUMMARY
