@@ -117,5 +117,3 @@ jobs:
         # Use the validation script
         chmod +x scripts/docker/validate-services.sh
         ./scripts/docker/validate-services.sh "$VERSION" "$PLATFORM"
-    
-
