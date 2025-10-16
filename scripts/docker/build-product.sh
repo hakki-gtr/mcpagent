@@ -76,10 +76,20 @@ else
     fi
   fi
   
-  # For local builds, use docker build to avoid Docker Hub pulls
-  # Only use buildx for multi-platform when we have multiple platforms
-  if [[ "$PLATFORMS" == *","* ]]; then
-    echo "Multi-platform build detected, using buildx"
+  # For local builds, use docker buildx build --load for cross-platform support
+  # Use docker build only for native AMD64 builds
+  if [[ "$PLATFORMS" == "linux/amd64" ]]; then
+    echo "Native AMD64 build, using docker build for local-only"
+    BUILD_CMD="docker build"
+    BUILD_ARGS=(
+      -f "$ROOT_DIR/Dockerfile"
+      --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
+      --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
+      -t "admingentoro/gentoro:$VERSION"
+      -t "admingentoro/gentoro:latest"
+    )
+  else
+    echo "Cross-platform build detected, using buildx"
     BUILD_CMD="docker buildx build"
     BUILD_ARGS=(
       -f "$ROOT_DIR/Dockerfile"
@@ -89,16 +99,6 @@ else
       -t "admingentoro/gentoro:$VERSION"
       -t "admingentoro/gentoro:latest"
       --load
-    )
-  else
-    echo "Single platform build, using docker build for local-only"
-    BUILD_CMD="docker build"
-    BUILD_ARGS=(
-      -f "$ROOT_DIR/Dockerfile"
-      --build-arg "APP_JAR=src/mcpagent/target/$JAR_NAME"
-      --build-arg "BASE_IMAGE=$BASE_IMAGE_NAME"
-      -t "admingentoro/gentoro:$VERSION"
-      -t "admingentoro/gentoro:latest"
     )
   fi
 fi
