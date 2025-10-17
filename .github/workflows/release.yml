@@ -65,6 +65,15 @@ jobs:
       pull-requests: write
     
     steps:
+    - name: Check dry run mode
+      if: github.event_name == 'workflow_dispatch'
+      run: |
+        if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          echo "🔍 DRY RUN MODE ENABLED - No actual changes will be made"
+        else
+          echo "🚀 LIVE RELEASE MODE - Changes will be applied"
+        fi
+    
     - name: Checkout code
       uses: actions/checkout@v4
       with:
@@ -110,6 +119,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
     
     - name: Show existing tags
+      if: github.event.inputs.dry_run != true || github.event_name == 'push'
       run: |
         echo "📋 Existing tags in repository:"
         git tag -l | sort -V | tail -10 || echo "No tags found"
