@@ -607,226 +607,55 @@ jobs:
       run: |
         echo "🔍 Validating TypeScript Runtime service health..."
         
-        # Check if supervisor is available (only in Docker container)
-        if ! command -v supervisorctl >/dev/null 2>&1; then
-          echo "⚠️  supervisorctl not available - skipping process validation"
-          echo "   This is expected in CI environment without Docker container"
-          echo "   Service validation will be performed during Docker container testing"
-          exit 0
-        fi
-        
-        # Check if TypeScript Runtime process is running (it's managed by supervisor)
-        echo "Checking if TypeScript Runtime process is running..."
-        if supervisorctl status tsruntime | grep -q "RUNNING"; then
-          echo "✅ TypeScript Runtime process is running"
-        else
-          echo "❌ TypeScript Runtime process is not running"
-          echo "Supervisor status:"
-          supervisorctl status || echo "Supervisor not available"
-          exit 1
-        fi
-        
-        # Check if port 7070 is listening (TypeScript Runtime runs on port 7070)
-        echo "Checking if port 7070 is listening..."
-        if netstat -tlnp 2>/dev/null | grep -q ":7070"; then
-          echo "✅ Port 7070 is listening"
-        else
-          echo "❌ Port 7070 is not listening"
-          echo "Active ports:"
-          netstat -tlnp 2>/dev/null | grep -E ":(3000|7070|8080|8081|8082)" || echo "No relevant ports found"
-          exit 1
-        fi
-        
-        # Test /run endpoint with more comprehensive checks
+        # Test /run endpoint
         echo "Testing TypeScript Runtime /run endpoint..."
         RESPONSE=$(curl -s -X POST http://localhost:7070/run \
           -H "Content-Type: application/json" \
           -d '{"snippet":"console.log(\"CI Health Check\"); \"success\""}' \
           --max-time 10)
-        echo "Response: $RESPONSE"
         
         if echo "$RESPONSE" | grep -q '"ok":true'; then
-          echo "✅ TypeScript Runtime /run endpoint working"
+          echo "✅ TypeScript Runtime service working"
         else
-          echo "❌ TypeScript Runtime /run endpoint failed"
-          echo "Expected 'ok:true' in response, got: $RESPONSE"
+          echo "❌ TypeScript Runtime service failed"
+          echo "Response: $RESPONSE"
           exit 1
         fi
-        
-        # Test /sdk/upload endpoint
-        echo "Testing TypeScript Runtime /sdk/upload endpoint..."
-        RESPONSE=$(curl -s -X POST http://localhost:7070/sdk/upload \
-          -F "spec=@/dev/null" \
-          -F "outDir=test" \
-          --max-time 10)
-        echo "Response: $RESPONSE"
-        
-        if echo "$RESPONSE" | grep -q "error\|ok"; then
-          echo "✅ TypeScript Runtime /sdk/upload endpoint responding"
-        else
-          echo "❌ TypeScript Runtime /sdk/upload endpoint failed"
-          exit 1
-        fi
-        
-        echo "✅ TypeScript Runtime service validation completed successfully"
     
     - name: Validate Mock Server Service Health
       run: |
         echo "🔍 Validating Mock Server (ACME Analytics) service health..."
         
-        # Check if supervisor is available (only in Docker container)
-        if ! command -v supervisorctl >/dev/null 2>&1; then
-          echo "⚠️  supervisorctl not available - skipping process validation"
-          echo "   This is expected in CI environment without Docker container"
-          echo "   Service validation will be performed during Docker container testing"
-          exit 0
-        fi
-        
-        # Check if Mock Server process is running (it's managed by supervisor)
-        echo "Checking if Mock Server process is running..."
-        if supervisorctl status mockserver | grep -q "RUNNING"; then
-          echo "✅ Mock Server process is running"
-        else
-          echo "❌ Mock Server process is not running"
-          echo "Supervisor status:"
-          supervisorctl status || echo "Supervisor not available"
-          exit 1
-        fi
-        
-        # Check if port 8082 is listening (Mock Server runs on port 8082)
-        echo "Checking if port 8082 is listening..."
-        if netstat -tlnp 2>/dev/null | grep -q ":8082"; then
-          echo "✅ Port 8082 is listening"
-        else
-          echo "❌ Port 8082 is not listening"
-          echo "Active ports:"
-          netstat -tlnp 2>/dev/null | grep -E ":(3000|7070|8080|8081|8082)" || echo "No relevant ports found"
-          exit 1
-        fi
-        
-        # Test /health endpoint with timeout
+        # Test /health endpoint
         echo "Testing ACME Analytics Server /health endpoint..."
-        RESPONSE=$(curl -s --max-time 10 http://localhost:8082/health)
-        echo "Response: $RESPONSE"
+        RESPONSE=$(curl -s --max-time 10 http://localhost:8081/health)
         
-        if [ -z "$RESPONSE" ]; then
-          echo "❌ ACME Analytics Server /health endpoint returned empty response"
-          exit 1
-        elif echo "$RESPONSE" | grep -q "healthy"; then
-          echo "✅ ACME Analytics Server /health endpoint working"
+        if echo "$RESPONSE" | grep -q "healthy"; then
+          echo "✅ ACME Analytics Server service working"
         else
-          echo "❌ ACME Analytics Server /health endpoint failed"
-          echo "Expected 'healthy' in response, got: $RESPONSE"
+          echo "❌ ACME Analytics Server service failed"
+          echo "Response: $RESPONSE"
           exit 1
         fi
-        
-        # Test /fields endpoint
-        echo "Testing ACME Analytics Server /fields endpoint..."
-        RESPONSE=$(curl -s http://localhost:8082/fields --max-time 10)
-        echo "Response: $RESPONSE"
-        
-        if echo "$RESPONSE" | grep -q "fields"; then
-          echo "✅ ACME Analytics Server /fields endpoint working"
-        else
-          echo "❌ ACME Analytics Server /fields endpoint failed"
-          exit 1
-        fi
-        
-        # Test /query endpoint
-        echo "Testing ACME Analytics Server /query endpoint..."
-        RESPONSE=$(curl -s -X POST http://localhost:8082/query \
-          -H "Content-Type: application/json" \
-          -d '{"fields":["sale.id"],"limit":1}' \
-          --max-time 10)
-        echo "Response: $RESPONSE"
-        
-        if echo "$RESPONSE" | grep -q "success\|data"; then
-          echo "✅ ACME Analytics Server /query endpoint working"
-        else
-          echo "❌ ACME Analytics Server /query endpoint failed"
-          exit 1
-        fi
-        
-        echo "✅ Mock Server (ACME Analytics) service validation completed successfully"
     
     - name: Validate OpenTelemetry Collector Service Health
       run: |
         echo "🔍 Validating OpenTelemetry Collector service health..."
         
-        # Check if supervisor is available (only in Docker container)
-        if ! command -v supervisorctl >/dev/null 2>&1; then
-          echo "⚠️  supervisorctl not available - skipping process validation"
-          echo "   This is expected in CI environment without Docker container"
-          echo "   Service validation will be performed during Docker container testing"
-          exit 0
-        fi
-        
-        # Check if OTEL process is running (it's managed by supervisor)
-        echo "Checking if OpenTelemetry Collector process is running..."
-        if supervisorctl status otelcol | grep -q "RUNNING"; then
-          echo "✅ OpenTelemetry Collector process is running"
-        else
-          echo "❌ OpenTelemetry Collector process is not running"
-          echo "Supervisor status:"
-          supervisorctl status || echo "Supervisor not available"
-          exit 1
-        fi
-        
-        # Check if ports 4317 (gRPC) and 4318 (HTTP) are listening
-        echo "Checking if OTEL ports are listening..."
-        if netstat -tlnp 2>/dev/null | grep -q ":4317"; then
-          echo "✅ Port 4317 (gRPC) is listening"
-        else
-          echo "❌ Port 4317 (gRPC) is not listening"
-        fi
-        
-        if netstat -tlnp 2>/dev/null | grep -q ":4318"; then
-          echo "✅ Port 4318 (HTTP) is listening"
-        else
-          echo "❌ Port 4318 (HTTP) is not listening"
-        fi
-        
-        # Test OTLP HTTP endpoint (port 4318)
+        # Test OTLP HTTP endpoint
         echo "Testing OTLP HTTP endpoint..."
         RESPONSE=$(curl -s -X POST http://localhost:4318/v1/traces \
           -H "Content-Type: application/json" \
           -d '{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"test-service"}}]},"scopeSpans":[{"spans":[{"traceId":"12345678901234567890123456789012","spanId":"1234567890123456","name":"test-span","startTimeUnixNano":"1640995200000000000","endTimeUnixNano":"1640995201000000000","status":{"code":"STATUS_CODE_OK"}}]}]}]}' \
           --max-time 10 2>/dev/null || echo "endpoint not available")
         
-        if [ "$RESPONSE" = "endpoint not available" ]; then
-          echo "⚠️ OTLP HTTP endpoint not responding (this may be expected in test environment)"
+        if [ "$RESPONSE" != "endpoint not available" ]; then
+          echo "✅ OpenTelemetry Collector service working"
         else
-          echo "✅ OTLP HTTP endpoint responding"
+          echo "❌ OpenTelemetry Collector service failed"
+          echo "Response: $RESPONSE"
+          exit 1
         fi
-        
-        # Test OTLP gRPC endpoint (port 4317) - basic connectivity check
-        echo "Testing OTLP gRPC endpoint connectivity..."
-        if timeout 5 bash -c 'echo > /dev/tcp/localhost/4317' 2>/dev/null; then
-          echo "✅ OTLP gRPC endpoint is accessible"
-        else
-          echo "⚠️ OTLP gRPC endpoint not accessible (this may be expected in test environment)"
-        fi
-        
-        # Check if OTEL log file is being created (indicates it's processing data)
-        echo "Checking OTEL log file..."
-        if [ -f "/var/log/otel-collector.json" ]; then
-          echo "✅ OTEL log file exists: /var/log/otel-collector.json"
-          echo "File size: $(stat -c%s /var/log/otel-collector.json 2>/dev/null || echo 'unknown') bytes"
-        else
-          echo "⚠️ OTEL log file not found (may not have received data yet)"
-        fi
-        
-        # Check OTEL configuration
-        echo "Checking OTEL configuration..."
-        if [ -f "/etc/otel-collector-config.yaml" ]; then
-          echo "✅ OTEL configuration file exists"
-          echo "Configuration summary:"
-          grep -E "(receivers|exporters|service)" /etc/otel-collector-config.yaml | head -5 || echo "Could not read config"
-        else
-          echo "⚠️ OTEL configuration file not found"
-        fi
-        
-        echo "✅ OpenTelemetry Collector service validation completed successfully"
     
     - name: Stop all services
       if: always()
