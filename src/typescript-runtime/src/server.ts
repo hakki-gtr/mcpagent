@@ -259,7 +259,7 @@ export * from "./configuration";
 // -----------------------------
 // Start server (main)
 // -----------------------------
-const port = getNumber("PORT", 3000)!;
+const port = getNumber("PORT", 7070)!;
 const app = await createServer();
 app
   .listen({ port, host: "0.0.0.0" })
