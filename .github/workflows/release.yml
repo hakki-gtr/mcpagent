@@ -213,6 +213,19 @@ jobs:
         cd src/mcpagent
         ./mvnw -q -DskipTests package spring-boot:repackage || mvn -q -DskipTests package spring-boot:repackage
     
+    - name: Build ACME Analytics Server
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
+      run: |
+        cd src/acme-analytics-server/server
+        ./build.sh
+    
+    - name: Build TypeScript Runtime
+      if: github.event_name == 'push' || github.event.inputs.dry_run != true
+      run: |
+        cd src/typescript-runtime
+        npm install --legacy-peer-deps
+        npm run build
+    
     - name: Build and push product image
       if: github.event_name == 'push' || github.event.inputs.dry_run != true
       run: |
