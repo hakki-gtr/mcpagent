@@ -188,11 +188,10 @@ start_supervisord() {
     echo "=========================================="
     
     # Keep container running and show live logs
-    log_info "Container is running. To see live logs:"
-    log_info "  docker exec <container> tail -f /var/log/supervisor/app.out.log"
+    log_info "Container is running. Showing live logs..."
     
-    # Wait for supervisord to finish (keeps container alive)
-    wait $supervisord_pid
+    # Show live logs from all services
+    tail -f /var/log/supervisor/app.out.log
 }
 
 # Main command parsing logic

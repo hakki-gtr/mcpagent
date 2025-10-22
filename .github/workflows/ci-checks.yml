@@ -607,27 +607,25 @@ jobs:
       run: |
         echo "🔍 Validating TypeScript Runtime service health..."
         
-        # Check if TypeScript Runtime process is running
-        if [ ! -z "$TSRT_PID" ]; then
-          if kill -0 $TSRT_PID 2>/dev/null; then
-            echo "✅ TypeScript Runtime process is running (PID: $TSRT_PID)"
-          else
-            echo "❌ TypeScript Runtime process is not running (PID: $TSRT_PID)"
-            exit 1
-          fi
+        # Check if TypeScript Runtime process is running (it's managed by supervisor)
+        echo "Checking if TypeScript Runtime process is running..."
+        if supervisorctl status tsruntime | grep -q "RUNNING"; then
+          echo "✅ TypeScript Runtime process is running"
         else
-          echo "❌ TSRT_PID not set"
+          echo "❌ TypeScript Runtime process is not running"
+          echo "Supervisor status:"
+          supervisorctl status || echo "Supervisor not available"
           exit 1
         fi
         
-        # Check if port 7070 is listening
+        # Check if port 7070 is listening (TypeScript Runtime runs on port 7070)
         echo "Checking if port 7070 is listening..."
         if netstat -tlnp 2>/dev/null | grep -q ":7070"; then
           echo "✅ Port 7070 is listening"
         else
           echo "❌ Port 7070 is not listening"
           echo "Active ports:"
-          netstat -tlnp 2>/dev/null | grep -E ":(7070|8080|8081)" || echo "No relevant ports found"
+          netstat -tlnp 2>/dev/null | grep -E ":(3000|7070|8080|8081|8082)" || echo "No relevant ports found"
           exit 1
         fi
         
@@ -668,33 +666,31 @@ jobs:
       run: |
         echo "🔍 Validating Mock Server (ACME Analytics) service health..."
         
-        # Check if ACME server process is running
-        if [ ! -z "$ACME_PID" ]; then
-          if kill -0 $ACME_PID 2>/dev/null; then
-            echo "✅ ACME server process is running (PID: $ACME_PID)"
-          else
-            echo "❌ ACME server process is not running (PID: $ACME_PID)"
-            exit 1
-          fi
+        # Check if Mock Server process is running (it's managed by supervisor)
+        echo "Checking if Mock Server process is running..."
+        if supervisorctl status mockserver | grep -q "RUNNING"; then
+          echo "✅ Mock Server process is running"
         else
-          echo "❌ ACME_PID not set"
+          echo "❌ Mock Server process is not running"
+          echo "Supervisor status:"
+          supervisorctl status || echo "Supervisor not available"
           exit 1
         fi
         
-        # Check if port 8081 is listening
-        echo "Checking if port 8081 is listening..."
-        if netstat -tlnp 2>/dev/null | grep -q ":8081"; then
-          echo "✅ Port 8081 is listening"
+        # Check if port 8082 is listening (Mock Server runs on port 8082)
+        echo "Checking if port 8082 is listening..."
+        if netstat -tlnp 2>/dev/null | grep -q ":8082"; then
+          echo "✅ Port 8082 is listening"
         else
-          echo "❌ Port 8081 is not listening"
+          echo "❌ Port 8082 is not listening"
           echo "Active ports:"
-          netstat -tlnp 2>/dev/null | grep -E ":(7070|8080|8081)" || echo "No relevant ports found"
+          netstat -tlnp 2>/dev/null | grep -E ":(3000|7070|8080|8081|8082)" || echo "No relevant ports found"
           exit 1
         fi
         
         # Test /health endpoint with timeout
         echo "Testing ACME Analytics Server /health endpoint..."
-        RESPONSE=$(curl -s --max-time 10 http://localhost:8081/health)
+        RESPONSE=$(curl -s --max-time 10 http://localhost:8082/health)
         echo "Response: $RESPONSE"
         
         if [ -z "$RESPONSE" ]; then
@@ -710,7 +706,7 @@ jobs:
         
         # Test /fields endpoint
         echo "Testing ACME Analytics Server /fields endpoint..."
-        RESPONSE=$(curl -s http://localhost:8081/fields --max-time 10)
+        RESPONSE=$(curl -s http://localhost:8082/fields --max-time 10)
         echo "Response: $RESPONSE"
         
         if echo "$RESPONSE" | grep -q "fields"; then
@@ -722,7 +718,7 @@ jobs:
         
         # Test /query endpoint
         echo "Testing ACME Analytics Server /query endpoint..."
-        RESPONSE=$(curl -s -X POST http://localhost:8081/query \
+        RESPONSE=$(curl -s -X POST http://localhost:8082/query \
           -H "Content-Type: application/json" \
           -d '{"fields":["sale.id"],"limit":1}' \
           --max-time 10)
@@ -741,14 +737,14 @@ jobs:
       run: |
         echo "🔍 Validating OpenTelemetry Collector service health..."
         
-        # Check if OTEL process is running (it's managed by supervisor, so we check the process)
+        # Check if OTEL process is running (it's managed by supervisor)
         echo "Checking if OpenTelemetry Collector process is running..."
-        if pgrep -f "otelcol" > /dev/null; then
+        if supervisorctl status otelcol | grep -q "RUNNING"; then
           echo "✅ OpenTelemetry Collector process is running"
         else
           echo "❌ OpenTelemetry Collector process is not running"
-          echo "Available processes:"
-          ps aux | grep -E "(otel|supervisor)" || echo "No otel or supervisor processes found"
+          echo "Supervisor status:"
+          supervisorctl status || echo "Supervisor not available"
           exit 1
         fi
         
