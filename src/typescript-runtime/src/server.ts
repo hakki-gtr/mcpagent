@@ -253,6 +253,11 @@ export * from "./configuration";
 
     });
 
+  // Add health check endpoint
+  app.get("/health", async (request, reply) => {
+    return { status: "ok", timestamp: new Date().toISOString() };
+  });
+
   return app;
 }
 
