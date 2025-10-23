@@ -115,7 +115,9 @@ public class TypescriptRuntimeClient {
         .contentType(MediaType.MULTIPART_FORM_DATA)
         .body(BodyInserters.fromMultipartData(mb1.build()))
         .retrieve()
-        .bodyToMono(UploadResult.class);
+        .bodyToMono(UploadResult.class)
+        .retry(3) // Retry up to 3 times on failure
+        .doOnError(e -> logger.warn("Failed to upload OpenAPI spec after retries: {}", e.getMessage()));
   }
 
   /**
@@ -182,7 +184,9 @@ public class TypescriptRuntimeClient {
         resp -> resp.bodyToMono(String.class).map(body ->
             new IllegalStateException("Docs request failed: " + resp.statusCode() + " - " + body)))
         .bodyToMono(DocsResponse.class)
-        .timeout(java.time.Duration.ofSeconds(30));
+        .timeout(java.time.Duration.ofSeconds(30))
+        .retry(3) // Retry up to 3 times on failure
+        .doOnError(e -> logger.warn("Failed to fetch docs after retries: {}", e.getMessage()));
   }
 
   /**

@@ -19,7 +19,9 @@ The MCP Agent uses a **foundation folder** containing your agent's knowledge bas
 - `apis/` - OpenAPI specifications
 - `state/` - Knowledge base state (auto-generated)
 
-The Docker image includes default ACME Analytics Server content, if you simply run with [Using Docker](#using-docker) or you can provide your own foundation folder (see [Using Docker with Custom Foundation Folder](#using-docker-with-custom-foundation-folder) below).
+The Docker image includes default ACME Analytics Server content, if you simply run with [Using Docker](#using-docker), it will mount the sample ACME porject to play around with.
+
+You can provide your own foundation folder (see [Using Docker with Custom Foundation Folder](#using-docker-with-custom-foundation-folder) below).
 
 ## Quick Start
 
@@ -28,14 +30,14 @@ The Docker image includes default ACME Analytics Server content, if you simply r
 ```bash
 # Pull and run the latest image
 docker pull admingentoro/gentoro:latest
-docker run -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
+docker run --name mcpagent -p 8080:8080 -e OPENAI_API_KEY=your-key admingentoro/gentoro:latest
 ```
 
 ### Using Docker with Custom Foundation Folder
 
 ```bash
 # Run within your custom foundation folder
-docker run -p 8080:8080 \
+docker run --name mcpagent -p 8080:8080 \
   -v $(pwd):/var/foundation \
   -e OPENAI_API_KEY=your-key \
   admingentoro/gentoro:latest
@@ -66,4 +68,50 @@ When the inspector opens:
 1. MCP URL should be set to `http://localhost:8080/mcp` 
 2. Tweak configuration based on your preference and requirements
 3. Click "Connect"
+
+**Note:** Wait 30-60 seconds for the server to fully initialize before connecting the MCP Inspector.
+
+## Container Management
+
+With named containers, you can easily manage the MCP Agent:
+
+```bash
+# Start/stop the container
+docker start mcpagent
+docker stop mcpagent
+
+# View logs
+docker logs mcpagent
+
+# Access container shell
+docker exec -it mcpagent bash
+
+# Remove container when done
+docker rm mcpagent
+```
+
+## Troubleshooting
+
+### Slow Startup (30-60 seconds)
+The default configuration uses AI hint generation which can be slow. For faster startup:
+
+```bash
+# Disable AI hint generation
+docker run --name mcpagent -p 8080:8080 \
+  -e OPENAI_API_KEY=your-key \
+  -e KNOWLEDGE_BASE_HINT_USE_AI=false \
+  admingentoro/gentoro:latest
+```
+
+### MCP Inspector Connection Issues
+If the MCP Inspector shows "socket hang up" errors:
+1. Wait 30-60 seconds for the server to fully initialize
+2. Ensure the MCP URL is set to `http://localhost:8080/mcp`
+3. Try refreshing the connection in the MCP Inspector
+
+### TypeScript Runtime Issues
+If you see TypeScript runtime errors, the optimized version includes fixes:
+- Proper startup order (TypeScript runtime starts first)
+- Health check endpoints
+- Retry logic for failed connections
 
